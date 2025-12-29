@@ -12,6 +12,7 @@ const DoctorDashboard = () => {
     const [doctor, setDoctor] = useState(null);
     const [loading, setLoading] = useState(true);
     const [view, setView] = useState('list'); // 'list' | 'calendar'
+    const [imageError, setImageError] = useState(false);
 
     useEffect(() => {
         const fetchProfile = async () => {
