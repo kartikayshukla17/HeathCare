@@ -98,7 +98,11 @@ router.get("/appointments", protect, authorize("patient"), async (req, res, next
                 date: appDateStr,
                 time: app.time,
                 status: app.status,
-                paymentStatus: app.paymentStatus
+                paymentStatus: app.paymentStatus,
+                paymentMethod: app.paymentMethod,
+                amount: app.amount,
+                refundAmount: app.refundAmount,
+                createdAt: app.createdAt
             };
 
             if (appDateStr === todayStr) {

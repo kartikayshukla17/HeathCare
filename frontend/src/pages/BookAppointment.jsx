@@ -139,7 +139,7 @@ const BookAppointment = () => {
                 const res = await loadScript("https://checkout.razorpay.com/v1/checkout.js");
 
                 if (!res) {
-                    setError("Razorpay SDK failed to load. Are you online?");
+                    setError("Razorpay SDK failed to load. Are you online? You can switch to 'Pay at Clinic' to book instantly.");
                     setLoading(false);
                     return;
                 }
@@ -180,11 +180,11 @@ const BookAppointment = () => {
                                 setStep(5);
                                 setTimeout(() => navigate('/'), 3000);
                             } else {
-                                setError("Payment verification failed");
+                                setError("Payment verification failed. Please try again or choose 'Pay at Clinic'.");
                             }
                         } catch (err) {
                             console.error(err);
-                            setError("Payment verification failed on server");
+                            setError("Payment verification failed on server. Please contact support or pay at clinic.");
                         }
                     },
                     prefill: {

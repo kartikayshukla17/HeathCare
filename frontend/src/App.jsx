@@ -11,6 +11,8 @@ const PatientDashboard = lazy(() => import("./pages/PatientDashboard"));
 const PatientProfileSetup = lazy(() => import("./pages/PatientProfileSetup"));
 const BookAppointment = lazy(() => import("./pages/BookAppointment"));
 const MyAppointments = lazy(() => import("./pages/MyAppointments"));
+const DoctorReports = lazy(() => import("./pages/DoctorReports"));
+const PatientReports = lazy(() => import("./pages/PatientReports"));
 
 function App() {
   return (
@@ -60,6 +62,11 @@ function App() {
                 <MyAppointments />
               </PrivateRoute>
             } />
+            <Route path="/patient/reports" element={
+              <PrivateRoute restrictedRole="patient">
+                <PatientReports />
+              </PrivateRoute>
+            } />
 
             {/* Doctor Routes */}
             <Route path="/doctor/dashboard" element={
@@ -71,6 +78,12 @@ function App() {
             <Route path="/doctor/setup" element={
               <PrivateRoute restrictedRole="doctor">
                 <DoctorProfileSetup />
+              </PrivateRoute>
+            } />
+
+            <Route path="/doctor/reports" element={
+              <PrivateRoute restrictedRole="doctor">
+                <DoctorReports />
               </PrivateRoute>
             } />
 
