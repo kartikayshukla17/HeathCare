@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { Eye, EyeOff, Stethoscope } from "lucide-react";
 import ThemeToggle from "../components/ThemeToggle";
 import { registerUser, clearError } from "../redux/slices/authSlice";
+import api from "../api/axios";
 
 const Signup = () => {
     const [formData, setFormData] = useState({
@@ -11,8 +12,10 @@ const Signup = () => {
         email: "",
         password: "",
         role: "patient",
-        gender: "Male"
+        gender: "Male",
+        specialization: ""
     });
+    const [specializations, setSpecializations] = useState([]);
     const [showPassword, setShowPassword] = useState(false);
 
     const dispatch = useDispatch();
@@ -21,9 +24,21 @@ const Signup = () => {
     const { loading, error, user } = useSelector((state) => state.auth);
 
     useEffect(() => {
+        const fetchSpecs = async () => {
+            try {
+                const response = await api.get('/specializations');
+                setSpecializations(response.data.map(s => s.name));
+            } catch (err) {
+                console.error("Failed to fetch specializations", err);
+                // Fallback list strictly for UI if API fails (though unlikely if route exists)
+                setSpecializations(["Cardiology", "Dermatology", "Neurology", "Pediatrics", "General Medicine"]);
+            }
+        };
+        fetchSpecs();
+    }, []);
+
+    useEffect(() => {
         if (user) {
-            // Check if user is fully setup. If doctor without availability, perhaps redirect to setup?
-            // For now, consistent behavior: redirect to home, PrivateRoute will handle setup redirect if needed.
             navigate('/');
         }
         return () => {
@@ -40,7 +55,6 @@ const Signup = () => {
 
         try {
             await dispatch(registerUser(formData)).unwrap();
-            // Navigation handled by useEffect
         } catch (err) {
             console.error("Registration failed", err);
         }
@@ -115,7 +129,7 @@ const Signup = () => {
                             value={formData.name}
                             onChange={handleChange}
                             className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder-gray-400 dark:placeholder-gray-500"
-                            placeholder="John Doe"
+                            placeholder={formData.role === 'doctor' ? "Dr. Name" : "John Doe"}
                         />
                     </div>
 
@@ -132,19 +146,59 @@ const Signup = () => {
                         />
                     </div>
 
-                    {formData.role === 'patient' && (
+                    {/* Gender Field - Visible for BOTH Patient and Doctor */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Gender</label>
+                        <select
+                            name="gender"
+                            value={formData.gender}
+                            onChange={handleChange}
+                            className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                        >
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    {/* Specialization - Only for Doctor */}
+                    {formData.role === 'doctor' && (
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Gender</label>
-                            <select
-                                name="gender"
-                                value={formData.gender}
-                                onChange={handleChange}
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                            >
-                                <option value="Male">Male</option>
-                                <option value="Female">Female</option>
-                                <option value="Other">Other</option>
-                            </select>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Specialization</label>
+                            <div className="space-y-2">
+                                <select
+                                    value={specializations.includes(formData.specialization) ? formData.specialization : (formData.specialization ? "Other" : "")}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        if (val === "Other") {
+                                            setFormData({ ...formData, specialization: "" });
+                                        } else {
+                                            setFormData({ ...formData, specialization: val });
+                                        }
+                                    }}
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all cursor-pointer"
+                                    required
+                                >
+                                    <option value="" disabled>Select Specialization</option>
+                                    {specializations.map(spec => (
+                                        <option key={spec} value={spec}>{spec}</option>
+                                    ))}
+                                    <option value="Other">Other (Type Custom)</option>
+                                </select>
+
+                                {/* Show input if "Other" is selected or user is typing a new one not in list */}
+                                {(!specializations.includes(formData.specialization) && formData.specialization !== undefined) && (
+                                    <input
+                                        type="text"
+                                        name="specialization"
+                                        required
+                                        value={formData.specialization}
+                                        onChange={handleChange}
+                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder-gray-400"
+                                        placeholder="Type your specialization (e.g. Cardiologist)"
+                                    />
+                                )}
+                            </div>
                         </div>
                     )}
 
