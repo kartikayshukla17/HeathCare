@@ -19,9 +19,15 @@ const AppointmentCalendar = ({ appointments, userRole }) => {
             const startTime = timeParts[0].trim(); // "09:00"
             const endTime = timeParts[1] ? timeParts[1].trim() : null; // "10:00" or null
 
-            startStr = `${appt.date}T${startTime}:00`;
+            // Handle date format (YYYY-MM-DD or ISO string)
+            let dateStr = appt.date;
+            if (dateStr.includes('T')) {
+                dateStr = dateStr.split('T')[0];
+            }
+
+            startStr = `${dateStr}T${startTime}:00`;
             if (endTime) {
-                endStr = `${appt.date}T${endTime}:00`;
+                endStr = `${dateStr}T${endTime}:00`;
             } else {
                 // Default to 1 hour if no end time or just single time point
                 // Actually fullcalendar handles "start" only fine
@@ -35,9 +41,15 @@ const AppointmentCalendar = ({ appointments, userRole }) => {
         else if (appt.status === 'pending') backgroundColor = '#eab308'; // yellow-500
 
         // Title logic
-        const title = userRole === 'patient'
-            ? `Dr. ${appt.doctorName || 'Unknown'} (${appt.type})`
-            : `${appt.patientId?.name || appt.patientName || 'Patient'} (${appt.symptoms || appt.type || 'Checkup'})`;
+        // Title logic
+        let title = 'Appointment';
+        if (userRole === 'patient') {
+            title = `Dr. ${appt.doctorName || 'Unknown'} (${appt.type || 'Checkup'})`;
+        } else {
+            // For doctor: show Patient Name
+            const patientName = appt.patientId?.name || appt.patientName || 'Unknown Patient';
+            title = `${patientName} (${appt.symptoms || 'Checkup'})`;
+        }
 
         return {
             id: appt._id || appt.id,

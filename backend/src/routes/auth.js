@@ -1,11 +1,10 @@
 import express from "express";
 import jwt from "jsonwebtoken";
-const { sign, verify } = jwt;
+const { sign } = jwt;
 import bcrypt from "bcryptjs";
 const { hash, compare } = bcrypt;
 import { config } from "dotenv";
 import Patient from "../models/Patient.js";
-import Admin from "../models/Admin.js";
 import Doctor from "../models/Doctor.js";
 import Specialization from "../models/Specialization.js";
 import sendMail from "../controllers/mailController.js";
@@ -45,17 +44,6 @@ router.post("/register", async (req, res, next) => {
                 gender,
                 DOB,
                 address,
-            });
-        } else if (userRole === "admin") {
-            existingUser = await Admin.findOne({ email });
-            if (existingUser) return res.status(400).json({ message: "Admin already exists" });
-
-            const hashedPassword = await hash(password, 10);
-            newUser = new Admin({
-                name,
-                email,
-                password: hashedPassword,
-                role: "admin",
             });
         } else if (userRole === "doctor") {
             existingUser = await Doctor.findOne({ email });
@@ -120,7 +108,6 @@ router.post("/login", async (req, res, next) => {
 
         let user;
         if (role === "patient") user = await Patient.findOne({ email });
-        else if (role === "admin") user = await Admin.findOne({ email });
         else if (role === "doctor") user = await Doctor.findOne({ email });
         else return res.status(400).json({ message: "Invalid role" });
 
@@ -128,7 +115,6 @@ router.post("/login", async (req, res, next) => {
             // Check if user exists in other roles to give a better error
             let foundRole = null;
             if (await Patient.findOne({ email })) foundRole = "patient";
-            else if (await Admin.findOne({ email })) foundRole = "admin";
             else if (await Doctor.findOne({ email })) foundRole = "doctor";
 
             if (foundRole) {

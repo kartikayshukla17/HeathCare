@@ -1,13 +1,54 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAppointments } from '../context/AppointmentContext';
+import { useDispatch, useSelector } from 'react-redux';
 import { Search, Calendar, MapPin, User, ChevronRight, CheckCircle, CreditCard, DollarSign } from 'lucide-react';
 import ThemeToggle from '../components/ThemeToggle';
 import api from '../api/axios';
+import { bookAppointment, fetchAppointments } from '../redux/slices/appointmentSlice';
+import { fetchSlotStatus, getSlotColor, isSlotFull } from '../redux/slices/slotSlice';
+
+const SlotButton = ({ time, date, doctorId, onSelect }) => {
+    const dispatch = useDispatch();
+    // Access slot counts from Redux
+    // Note: slotCounts in Redux might be a flat object { "09:00": 3 } from the last fetch
+    const { slotCounts } = useSelector(state => state.slots);
+    const [fetched, setFetched] = useState(false);
+
+    useEffect(() => {
+        // Fetch status on mount
+        dispatch(fetchSlotStatus({ doctorId, date })).then(() => setFetched(true));
+    }, [dispatch, doctorId, date]);
+
+    if (!fetched) {
+        return <div className="px-4 py-2 rounded-lg bg-gray-100 text-gray-400 text-sm animate-pulse">Loading...</div>;
+    }
+
+    const count = slotCounts[time];
+    const color = getSlotColor(time, count); // helper exported from slice
+    const isFull = isSlotFull(count); // helper exported from slice
+
+    let baseClass = "px-4 py-2 rounded-lg font-medium border-2 transition-all ";
+
+    if (color.includes('gray')) baseClass += "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed";
+    else if (color.includes('red')) baseClass += "bg-red-50 border-red-500 text-red-700 hover:bg-red-100";
+    else if (color.includes('yellow')) baseClass += "bg-yellow-50 border-yellow-500 text-yellow-700 hover:bg-yellow-100";
+    else baseClass += "bg-green-50 border-green-500 text-green-700 hover:bg-green-100";
+
+    return (
+        <button
+            onClick={onSelect}
+            disabled={isFull}
+            className={baseClass}
+            title={isFull ? "Slot Full" : "Available"}
+        >
+            {time}
+        </button>
+    );
+};
 
 const BookAppointment = () => {
     const navigate = useNavigate();
-    const { fetchAppointments } = useAppointments();
+    const dispatch = useDispatch();
     const [step, setStep] = useState(1);
     const [categories, setCategories] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState('');
@@ -58,27 +99,6 @@ const BookAppointment = () => {
         setStep(3);
     };
 
-    const handleSlotSelect = (day, time) => {
-        // Calculate next occurrence of this day
-        // For Hackathon, let's just pick a dummy date for "Next [Day]"
-        const today = new Date();
-        // logic to find date string for the day name... omitted for brevity, using simplistic "Today/Tomorrow" or just passing string
-        // Actually, we need a date. Let's assume the Day string implies the upcoming day of that week.
-        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        const dayIndex = days.indexOf(day);
-        const todayIndex = today.getDay();
-
-        let daysUntil = dayIndex - todayIndex;
-        if (daysUntil <= 0) daysUntil += 7; // Next occurrence
-
-        const nextDate = new Date();
-        nextDate.setDate(today.getDate() + daysUntil);
-        const dateString = nextDate.toISOString().split('T')[0];
-
-        setSelectedSlot({ date: dateString, time, day });
-        setStep(4);
-    };
-
     const loadScript = (src) => {
         return new Promise((resolve) => {
             const script = document.createElement("script");
@@ -104,14 +124,15 @@ const BookAppointment = () => {
 
         try {
             if (paymentMethod === 'Cash') {
-                await api.post('/appointments/book', {
+                const bookingData = {
                     doctorId: selectedDoctor._id,
                     date: selectedSlot.date,
                     time: selectedSlot.time,
                     symptoms: "Regular Checkup",
                     paymentMethod
-                });
-                await fetchAppointments();
+                };
+
+                await dispatch(bookAppointment(bookingData)).unwrap();
                 setStep(5);
                 setTimeout(() => navigate('/'), 3000);
             } else if (paymentMethod === 'Razorpay') {
@@ -124,17 +145,17 @@ const BookAppointment = () => {
                 }
 
                 // 1. Create Order
-                const orderRes = await api.post("/payment/order", { amount: 500 }); // Dummy amount 500 INR
+                const orderRes = await api.post("/payment/order", { amount: 500 });
                 const { order } = orderRes.data;
 
                 // 2. Open Notification
                 const options = {
-                    key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_placeholder", // Enter the Key ID generated from the Dashboard
+                    key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_placeholder",
                     amount: order.amount,
                     currency: order.currency,
                     name: "MediCare Plus",
                     description: "Appointment Booking Fee",
-                    image: "https://example.com/your_logo", // You can add your logo here
+                    image: "https://example.com/your_logo",
                     order_id: order.id,
                     handler: async function (response) {
                         // 3. Verify Payment
@@ -147,15 +168,15 @@ const BookAppointment = () => {
 
                             if (verifyRes.data.success) {
                                 // 4. Book Appointment
-                                await api.post('/appointments/book', {
+                                const bookingData = {
                                     doctorId: selectedDoctor._id,
                                     date: selectedSlot.date,
                                     time: selectedSlot.time,
                                     symptoms: "Regular Checkup",
                                     paymentMethod: 'Razorpay',
                                     paymentId: response.razorpay_payment_id
-                                });
-                                await fetchAppointments();
+                                };
+                                await dispatch(bookAppointment(bookingData)).unwrap();
                                 setStep(5);
                                 setTimeout(() => navigate('/'), 3000);
                             } else {
@@ -167,12 +188,9 @@ const BookAppointment = () => {
                         }
                     },
                     prefill: {
-                        name: "Kartikay Shukla", // We could fetch this from user profile
+                        name: "Kartikay Shukla",
                         email: "kartikay@example.com",
                         contact: "9999999999",
-                    },
-                    notes: {
-                        address: "Razorpay Corporate Office",
                     },
                     theme: {
                         color: "#3399cc",
@@ -184,7 +202,7 @@ const BookAppointment = () => {
             }
         } catch (err) {
             console.error(err);
-            setError(err.response?.data?.message || "Booking failed");
+            setError(err || "Booking failed");
         } finally {
             setLoading(false);
         }
@@ -289,23 +307,42 @@ const BookAppointment = () => {
                             </div>
 
                             <h4 className="font-semibold text-gray-900 dark:text-white mb-4">Available Slots</h4>
-                            <div className="space-y-4">
-                                {selectedDoctor.availability.map((av, idx) => (
-                                    <div key={idx}>
-                                        <p className="font-medium text-gray-700 dark:text-gray-300 mb-2">{av.day}</p>
-                                        <div className="flex flex-wrap gap-2">
-                                            {av.slots.map(slot => (
-                                                <button
-                                                    key={slot}
-                                                    onClick={() => handleSlotSelect(av.day, slot)}
-                                                    className="px-4 py-2 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
-                                                >
-                                                    {slot}
-                                                </button>
-                                            ))}
+                            <div className="space-y-6">
+                                {selectedDoctor.availability.map((av, idx) => {
+                                    // Calculate the specific date for this "Day"
+                                    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                                    const dayIndex = days.indexOf(av.day);
+                                    const today = new Date();
+                                    const todayIndex = today.getDay();
+                                    let daysUntil = dayIndex - todayIndex;
+                                    if (daysUntil <= 0) daysUntil += 7; // Next occurrence
+                                    const nextDate = new Date();
+                                    nextDate.setDate(today.getDate() + daysUntil);
+                                    const dateString = nextDate.toISOString().split('T')[0];
+
+                                    return (
+                                        <div key={idx} className="border-b border-gray-100 dark:border-zinc-700 pb-4 last:border-0">
+                                            <div className="flex justify-between items-center mb-3">
+                                                <p className="font-medium text-gray-700 dark:text-gray-300">{av.day} ({dateString})</p>
+                                            </div>
+
+                                            <div className="flex flex-wrap gap-3">
+                                                {av.slots.map(slot => {
+                                                    return <SlotButton
+                                                        key={slot}
+                                                        time={slot}
+                                                        date={dateString}
+                                                        doctorId={selectedDoctor._id}
+                                                        onSelect={() => {
+                                                            setSelectedSlot({ date: dateString, time: slot, day: av.day });
+                                                            setStep(4);
+                                                        }}
+                                                    />
+                                                })}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>

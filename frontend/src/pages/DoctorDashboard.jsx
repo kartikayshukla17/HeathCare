@@ -1,18 +1,32 @@
 import React, { useEffect, useState } from 'react';
-import { useAppointments } from '../context/AppointmentContext';
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Users, Clock, LogOut, Settings, List, Grid } from 'lucide-react';
+import { Calendar, Users, Clock, LogOut, Settings, List, Grid, CheckCircle, XCircle, Trash2, AlertTriangle } from 'lucide-react';
 import AppointmentCalendar from '../components/AppointmentCalendar';
 import ThemeToggle from '../components/ThemeToggle';
+import { HealthMetricCard, ActionButton } from '../components/DashboardWidgets';
 import api from '../api/axios';
+import { fetchAppointments, selectAppointments, cancelAppointment, cancelAllAppointments } from '../redux/slices/appointmentSlice';
+import { logoutUser } from '../redux/slices/authSlice';
 
 const DoctorDashboard = () => {
     const navigate = useNavigate();
-    const { appointments } = useAppointments();
+    const dispatch = useDispatch();
+
+    // Select appointments from Redux
+    const rawAppointments = useSelector(selectAppointments);
+    const appointments = Array.isArray(rawAppointments) ? rawAppointments : [];
+    const { loading: apptLoading } = useSelector(state => state.appointments);
+
     const [doctor, setDoctor] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(true); // Profile loading
     const [view, setView] = useState('list'); // 'list' | 'calendar'
     const [imageError, setImageError] = useState(false);
+    const [processing, setProcessing] = useState(false);
+
+    useEffect(() => {
+        dispatch(fetchAppointments());
+    }, [dispatch]);
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -20,7 +34,6 @@ const DoctorDashboard = () => {
                 const response = await api.get('/doctor/profile');
                 const profile = response.data;
 
-                // If availability is empty, redirect to setup
                 if (!profile.availability || profile.availability.length === 0) {
                     navigate('/doctor/setup');
                     return;
@@ -29,7 +42,6 @@ const DoctorDashboard = () => {
                 setDoctor(profile);
             } catch (error) {
                 console.error("Failed to fetch profile:", error);
-                // navigate('/login'); // Optional: redirect to login on error
             } finally {
                 setLoading(false);
             }
@@ -39,16 +51,38 @@ const DoctorDashboard = () => {
     }, [navigate]);
 
     const handleLogout = async () => {
+        await dispatch(logoutUser());
+        navigate('/login');
+    };
+
+    const handleCancel = async (apptId) => {
+        if (!window.confirm("Are you sure you want to cancel this appointment?")) return;
+
         try {
-            await api.post('/auth/logout');
-            localStorage.removeItem('user');
-            navigate('/login');
+            await dispatch(cancelAppointment(apptId)).unwrap();
+            alert("Appointment cancelled successfully");
         } catch (error) {
-            console.error("Logout failed", error);
+            console.error("Cancellation failed", error);
+            alert(error || "Failed to cancel appointment");
         }
     };
 
-    if (loading) {
+    const handleCancelAll = async () => {
+        if (!window.confirm("WARNING: This will cancel ALL pending and confirmed appointments. Are you sure?")) return;
+
+        setProcessing(true);
+        try {
+            await dispatch(cancelAllAppointments()).unwrap();
+            alert("All appointments cancelled successfully");
+        } catch (error) {
+            console.error("Cancel All failed", error);
+            alert(error || "Failed to cancel all appointments");
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    if (loading || apptLoading) {
         return (
             <div className="min-h-screen bg-gray-50 dark:bg-zinc-900 flex items-center justify-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
@@ -56,14 +90,37 @@ const DoctorDashboard = () => {
         );
     }
 
-    return (
-        <div className="min-h-screen bg-gray-50 dark:bg-zinc-900 transition-colors duration-300">
-            {/* Sidebar (simplified for mobile responsiveness) could go here */}
+    // Calculate Stats
+    // Calculate Stats
+    const totalPatients = [...new Set(appointments.map(a => a.patientId?._id))].length;
 
-            {/* Main Content */}
-            <div className="p-8 max-w-7xl mx-auto">
+    // Logic to find Next Active Slot
+    const getNextSlot = () => {
+        if (!appointments || appointments.length === 0) return "N/A";
+
+        const now = new Date();
+        now.setHours(0, 0, 0, 0); // Start of today
+
+        // Filter out cancelled and past dates
+        // Note: Backend sorts appointments by Date ASC.
+        const upcoming = appointments.filter(appt => {
+            if (appt.status === 'cancelled') return false;
+
+            const apptDate = new Date(appt.date);
+            // We include today's appointments
+            return apptDate >= now;
+        });
+
+        return upcoming.length > 0 ? upcoming[0].time : "N/A";
+    };
+
+    const nextSlot = getNextSlot();
+
+    return (
+        <div className="min-h-screen bg-gray-50 dark:bg-zinc-900 transition-colors duration-300 p-4 sm:p-8">
+            <div className="max-w-7xl mx-auto space-y-8">
                 {/* Header */}
-                <div className="flex justify-between items-center mb-10">
+                <div className="flex justify-between items-center">
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
                         <p className="text-gray-500 dark:text-gray-400 mt-1">
@@ -105,49 +162,31 @@ const DoctorDashboard = () => {
                 </div>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-                    <div className="bg-white dark:bg-zinc-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-700">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl">
-                                <Calendar size={24} />
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Appointments</p>
-                                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{appointments.length}</h3>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="bg-white dark:bg-zinc-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-700">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-xl">
-                                <Users size={24} />
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Patients</p>
-                                {/* Calculate unique patients from appointments */}
-                                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
-                                    {[...new Set(appointments.map(a => a.patientId?._id))].length}
-                                </h3>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="bg-white dark:bg-zinc-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-700">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl">
-                                <Clock size={24} />
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Next Slot</p>
-                                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                                    {/* Sort appointments and pick first upcoming, or just "N/A" if empty */}
-                                    {appointments.length > 0 ? (appointments[0]?.time || "N/A") : "N/A"}
-                                </h3>
-                            </div>
-                        </div>
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <HealthMetricCard
+                        title="Total Appointments"
+                        value={appointments.length}
+                        unit=""
+                        icon={Calendar}
+                        color="bg-blue-500"
+                    />
+                    <HealthMetricCard
+                        title="Total Patients"
+                        value={totalPatients}
+                        unit=""
+                        icon={Users}
+                        color="bg-purple-500"
+                    />
+                    <HealthMetricCard
+                        title="Next Slot"
+                        value={nextSlot}
+                        unit=""
+                        icon={Clock}
+                        color="bg-emerald-500"
+                    />
                 </div>
 
-                {/* Content Sections */}
+                {/* Main Content */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Appointments List */}
                     <div className="lg:col-span-2 space-y-6">
@@ -175,7 +214,7 @@ const DoctorDashboard = () => {
                                     <div key={appt._id} className="p-4 border-b border-gray-100 dark:border-zinc-700 last:border-0 hover:bg-gray-50 dark:hover:bg-zinc-700/50 transition-colors cursor-pointer group">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-4">
-                                                <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-zinc-700 flex items-center justify-center font-bold text-gray-500 dark:text-gray-400">
+                                                <div className="w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center font-bold text-blue-600 dark:text-blue-400">
                                                     {appt.patientId?.name?.charAt(0) || "P"}
                                                 </div>
                                                 <div>
@@ -185,20 +224,31 @@ const DoctorDashboard = () => {
                                                     <p className="text-sm text-gray-500 dark:text-gray-400">{appt.symptoms || "General Checkup"}</p>
                                                 </div>
                                             </div>
-                                            <div className="text-right">
-                                                <p className="font-bold text-gray-900 dark:text-white">{appt.time}</p>
-                                                <span className={`text-xs font-medium px-2 py-1 rounded ${appt.status === "confirmed"
+                                            <div className="text-right flex flex-col items-end gap-1">
+                                                <p className="font-bold text-gray-900 dark:text-white text-lg">{appt.time}</p>
+                                                <span className={`text-xs font-medium px-2 py-1 rounded-full ${appt.status === "confirmed"
                                                     ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                                                    : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                                                    : appt.status === "cancelled"
+                                                        ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                                                        : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
                                                     }`}>
                                                     {appt.status}
                                                 </span>
+                                                {appt.status !== 'cancelled' && (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleCancel(appt._id); }}
+                                                        className="text-xs text-red-500 hover:underline mt-1"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
                                 )) : (
-                                    <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-                                        No appointments scheduled.
+                                    <div className="p-12 text-center text-gray-500 dark:text-gray-400 flex flex-col items-center">
+                                        <Calendar size={48} className="mb-4 opacity-20" />
+                                        <p>No appointments scheduled for today.</p>
                                     </div>
                                 )}
                             </div>
@@ -207,28 +257,43 @@ const DoctorDashboard = () => {
                         )}
                     </div>
 
-                    {/* Availability Preview */}
+                    {/* Sidebar */}
                     <div className="space-y-6">
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">My Availability</h2>
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Quick Actions</h2>
+                        <div className="grid grid-cols-2 gap-4">
+                            <ActionButton
+                                icon={Settings}
+                                label="Edit Schedule"
+                                onClick={() => navigate('/doctor/setup')}
+                            />
+                            <ActionButton
+                                icon={AlertTriangle}
+                                label="Cancel All"
+                                onClick={handleCancelAll}
+                                colorClass="bg-red-50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400"
+                            />
+                        </div>
+
                         <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-700 p-6">
+                            <h3 className="font-bold text-gray-900 dark:text-white mb-4">Upcoming Schedule</h3>
                             <ul className="space-y-4">
-                                {doctor?.availability?.slice(0, 5).map((av, idx) => (
-                                    <li key={idx} className="flex justify-between items-start text-sm">
-                                        <span className="font-medium text-gray-700 dark:text-gray-300">{av.day}</span>
-                                        <div className="text-right text-gray-500 dark:text-gray-400 space-y-1">
-                                            {av.slots.map((s, sIdx) => (
-                                                <div key={sIdx}>{s}</div>
+                                {doctor?.availability?.slice(0, 3).map((av, idx) => (
+                                    <li key={idx} className="pb-4 border-b border-gray-50 dark:border-zinc-700 last:border-0 last:pb-0">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <span className="font-medium text-gray-700 dark:text-gray-300">{av.day}</span>
+                                            <span className="text-xs text-gray-400">{av.slots.length} Slots</span>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {av.slots.slice(0, 3).map((s, sIdx) => (
+                                                <span key={sIdx} className="text-xs bg-gray-100 dark:bg-zinc-700 px-2 py-1 rounded text-gray-600 dark:text-gray-300">{s}</span>
                                             ))}
+                                            {av.slots.length > 3 && (
+                                                <span className="text-xs bg-gray-100 dark:bg-zinc-700 px-2 py-1 rounded text-gray-500">+{av.slots.length - 3}</span>
+                                            )}
                                         </div>
                                     </li>
                                 ))}
                             </ul>
-                            <button
-                                onClick={() => navigate('/doctor/setup')}
-                                className="w-full mt-6 py-2 px-4 border border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 rounded-xl text-sm font-semibold hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-colors"
-                            >
-                                Edit Schedule
-                            </button>
                         </div>
                     </div>
                 </div>

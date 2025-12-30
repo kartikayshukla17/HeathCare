@@ -45,8 +45,16 @@ const AppointmentSchema = new mongoose.Schema(
         },
         paymentStatus: {
             type: String,
-            enum: ["Pending", "Paid", "Failed"],
+            enum: ["Pending", "Paid", "Failed", "Refunded"],
             default: "Pending",
+        },
+        refundAmount: {
+            type: Number,
+            default: 0,
+        },
+        reminderSent: {
+            type: Boolean,
+            default: false,
         },
     },
     { timestamps: true }

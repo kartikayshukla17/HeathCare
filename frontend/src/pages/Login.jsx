@@ -1,39 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import { Eye, EyeOff, Stethoscope } from 'lucide-react';
 import ThemeToggle from '../components/ThemeToggle';
-import api from '../api/axios'; // Import the axios instance
-import { useAppointments } from '../context/AppointmentContext';
+import { loginUser, clearError } from '../redux/slices/authSlice';
 
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [role, setRole] = useState('patient');
     const [showPassword, setShowPassword] = useState(false);
-    const [error, setError] = useState('');
+
+    const dispatch = useDispatch();
     const navigate = useNavigate();
-    const { fetchAppointments } = useAppointments();
+
+    const { loading, error, user } = useSelector((state) => state.auth);
+
+    useEffect(() => {
+        if (user) {
+            navigate('/');
+        }
+        return () => {
+            dispatch(clearError());
+        }
+    }, [user, navigate, dispatch]);
 
     const handleLogin = async (e) => {
         e.preventDefault();
-        setError('');
 
         try {
-            // Using axios instance
-            const response = await api.post('/auth/login', {
-                email,
-                password,
-                role,
-            });
-
-            if (response.status === 200) {
-                localStorage.setItem('user', JSON.stringify(response.data.user));
-                await fetchAppointments(); // Refresh context state
-                navigate('/');
-            }
+            await dispatch(loginUser({ email, password, role })).unwrap();
+            // Navigation handled by useEffect on user state change
         } catch (err) {
-            // Axios stores the response in err.response
-            setError(err.response?.data?.message || 'Login failed. Please try again.');
+            console.error("Login failed", err);
         }
     };
 
@@ -81,7 +80,7 @@ const Login = () => {
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">I am a...</label>
                         <div className="grid grid-cols-3 gap-3">
-                            {['patient', 'doctor', 'admin'].map((r) => (
+                            {['patient', 'doctor'].map((r) => (
                                 <button
                                     key={r}
                                     type="button"
@@ -132,9 +131,10 @@ const Login = () => {
 
                     <button
                         type="submit"
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-all shadow-lg shadow-blue-600/30 hover:shadow-blue-600/40 active:scale-[0.98]"
+                        disabled={loading}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-all shadow-lg shadow-blue-600/30 hover:shadow-blue-600/40 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        Sign In
+                        {loading ? 'Signing in...' : 'Sign In'}
                     </button>
                 </form>
 

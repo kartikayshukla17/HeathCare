@@ -1,24 +1,30 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import Login from "./pages/Login";
-import Signup from "./pages/Signup";
+import React, { Suspense, lazy } from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import PrivateRoute from "./components/PrivateRoute";
-import DoctorDashboard from "./pages/DoctorDashboard";
-import DoctorProfileSetup from "./pages/DoctorProfileSetup";
-import PatientDashboard from "./pages/PatientDashboard";
-import PatientProfileSetup from "./pages/PatientProfileSetup";
-import BookAppointment from "./pages/BookAppointment";
-import { AppointmentProvider } from "./context/AppointmentContext";
+
+// Lazy Load Components
+const Login = lazy(() => import("./pages/Login"));
+const Signup = lazy(() => import("./pages/Signup"));
+const DoctorDashboard = lazy(() => import("./pages/DoctorDashboard"));
+const DoctorProfileSetup = lazy(() => import("./pages/DoctorProfileSetup"));
+const PatientDashboard = lazy(() => import("./pages/PatientDashboard"));
+const PatientProfileSetup = lazy(() => import("./pages/PatientProfileSetup"));
+const BookAppointment = lazy(() => import("./pages/BookAppointment"));
+const MyAppointments = lazy(() => import("./pages/MyAppointments"));
 
 function App() {
   return (
     <BrowserRouter>
-      <AppointmentProvider>
-        <div className="font-sans antialiased text-gray-900 dark:text-white">
+      <div className="font-sans antialiased text-gray-900 dark:text-white">
+        <Suspense fallback={
+          <div className="min-h-screen bg-gray-50 dark:bg-zinc-900 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
+          </div>
+        }>
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
 
-            {/* Patient Routes */}
             {/* Patient Routes */}
             <Route path="/" element={
               <PrivateRoute restrictedRole="patient">
@@ -38,6 +44,23 @@ function App() {
               </PrivateRoute>
             } />
 
+            {/* Aliases/Missing Routes */}
+            <Route path="/book-appointment" element={
+              <PrivateRoute restrictedRole="patient">
+                <BookAppointment />
+              </PrivateRoute>
+            } />
+            <Route path="/appointments" element={
+              <PrivateRoute restrictedRole="patient">
+                <MyAppointments />
+              </PrivateRoute>
+            } />
+            <Route path="/history" element={
+              <PrivateRoute restrictedRole="patient">
+                <MyAppointments />
+              </PrivateRoute>
+            } />
+
             {/* Doctor Routes */}
             <Route path="/doctor/dashboard" element={
               <PrivateRoute restrictedRole="doctor">
@@ -52,8 +75,8 @@ function App() {
             } />
 
           </Routes>
-        </div>
-      </AppointmentProvider>
+        </Suspense>
+      </div>
     </BrowserRouter>
   );
 }
