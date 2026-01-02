@@ -99,7 +99,7 @@ router.post("/register", async (req, res, next) => {
 // Login
 router.post("/login", async (req, res, next) => {
     try {
-        console.log("Login attempt:", req.body);
+
         const { email, password, role } = req.body;
 
         if (!role) {

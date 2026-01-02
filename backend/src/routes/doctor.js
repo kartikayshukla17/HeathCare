@@ -2,6 +2,7 @@ import express from "express";
 import Doctor from "../models/Doctor.js";
 import Appointment from "../models/Appointment.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
+import redisClient from "../utils/redisClient.js";
 
 import upload from "../middleware/uploadMiddleware.js";
 
@@ -14,10 +15,20 @@ const router = express.Router();
 // @access  Private (Doctor only)
 router.get("/profile", protect, authorize("doctor"), async (req, res, next) => {
     try {
+        const cacheKey = `doctor:${req.user.id}`;
+        const cachedDoc = await redisClient.get(cacheKey);
+
+        if (cachedDoc) {
+            console.log("Serving Doctor Profile from Cache");
+            return res.status(200).json(JSON.parse(cachedDoc));
+        }
+
         const doctor = await Doctor.findById(req.user.id).select("-password");
         if (!doctor) {
             return res.status(404).json({ message: "Doctor not found" });
         }
+
+        await redisClient.setEx(cacheKey, 3600, JSON.stringify(doctor));
         res.status(200).json(doctor);
     } catch (error) {
         next(error);

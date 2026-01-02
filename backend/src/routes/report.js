@@ -2,6 +2,7 @@ import express from "express";
 import Report from "../models/Report.js";
 import Appointment from "../models/Appointment.js";
 import { getIO } from "../utils/socket.js";
+import redisClient from "../utils/redisClient.js";
 
 const router = express.Router();
 
@@ -48,6 +49,13 @@ router.post("/", async (req, res, next) => {
 // Get report by appointment ID
 router.get("/appointment/:appointmentId", async (req, res, next) => {
     try {
+        const cacheKey = `report:appointment:${req.params.appointmentId}`;
+        const cachedReport = await redisClient.get(cacheKey);
+
+        if (cachedReport) {
+            return res.status(200).json(JSON.parse(cachedReport));
+        }
+
         const report = await Report.findOne({ appointmentId: req.params.appointmentId })
             .populate({
                 path: 'doctorId',
@@ -59,6 +67,8 @@ router.get("/appointment/:appointmentId", async (req, res, next) => {
         if (!report) {
             return res.status(404).json({ message: "Report not found" });
         }
+
+        await redisClient.setEx(cacheKey, 3600, JSON.stringify(report));
         res.status(200).json(report);
     } catch (error) {
         next(error);
@@ -68,6 +78,14 @@ router.get("/appointment/:appointmentId", async (req, res, next) => {
 // Get all reports for a patient (My Reports)
 router.get("/patient/:patientId", async (req, res, next) => {
     try {
+        const cacheKey = `reports:patient:${req.params.patientId}`;
+        const cachedReports = await redisClient.get(cacheKey);
+
+        if (cachedReports) {
+            console.log("Serving Patient Reports from Cache");
+            return res.status(200).json(JSON.parse(cachedReports));
+        }
+
         const reports = await Report.find({ patientId: req.params.patientId })
             .populate({
                 path: 'doctorId',
@@ -77,6 +95,8 @@ router.get("/patient/:patientId", async (req, res, next) => {
             .populate('patientId', 'name gender DOB address') // Ensure patient details are also there if needed
             .populate('appointmentId', 'date time')
             .sort({ createdAt: -1 });
+
+        await redisClient.setEx(cacheKey, 3600, JSON.stringify(reports));
 
         res.status(200).json(reports);
     } catch (error) {
@@ -91,6 +111,14 @@ router.get("/doctor/me", async (req, res, next) => {
 
         if (!doctorId) return res.status(400).json({ message: "Doctor ID required" });
 
+        const cacheKey = `reports:doctor:${doctorId}`;
+        const cachedReports = await redisClient.get(cacheKey);
+
+        if (cachedReports) {
+            console.log("Serving Doctor Reports from Cache");
+            return res.status(200).json(JSON.parse(cachedReports));
+        }
+
         const reports = await Report.find({ doctorId })
             .populate('patientId', 'name gender DOB address')
             .populate({
@@ -100,6 +128,8 @@ router.get("/doctor/me", async (req, res, next) => {
             })
             .populate('appointmentId', 'date time')
             .sort({ createdAt: -1 });
+
+        await redisClient.setEx(cacheKey, 3600, JSON.stringify(reports));
 
         res.status(200).json(reports);
     } catch (error) {

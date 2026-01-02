@@ -23,19 +23,43 @@ A comprehensive healthcare management platform connecting patients and doctors.
     - **Modern Design**: Glassmorphism, smooth animations, and responsive layouts.
     - **Dark Mode**: Fully supported dark mode across all screens.
     - **Profile Management**: Profile picture upload and instant sync.
+- **Performance & Scalability**:
+    - **Redis Caching**: Cache-Aside strategy for high-read data (Profiles, Reports, Specializations).
+    - **CDC (Change Data Capture)**: MongoDB Change Streams for automated, reliable cache invalidation.
+    - **Dockerized**: Full stack containerization (Frontend, Backend, Mongo, Redis).
 
 ## Tech Stack
 - **Frontend**: React (Vite), Redux Toolkit, Tailwind CSS, Lucide Icons, Socket.io Client.
-- **Backend**: Node.js, Express, MongoDB, Mongoose, Socket.io.
+- **Backend**: Node.js, Express, MongoDB (Replica Set), Mongoose, Socket.io.
+- **Caching**: Redis, Redis Commander (UI).
+- **DevOps**: Docker, Docker Compose.
 - **Tools**: `jspdf` (PDF Generation), `nodemailer` (Email Notifications).
 
 ## Getting Started
 
 ### Prerequisites
-- Node.js (v14+)
-- MongoDB (Running locally or Atlas URI)
+- Docker Desktop (Required for full stack)
+- Node.js (v14+) (If running locally without Docker)
 
-### Installation
+### Installation (Docker - Recommended)
+
+1.  **Clone the repository**
+    ```bash
+    git clone https://github.com/kartikayshukla17/HeathCare-.git
+    cd HeathCare-
+    ```
+
+2.  **Start Services**
+    ```bash
+    docker-compose up --build
+    ```
+    This will start Backend (5001), Frontend (5173), MongoDB (27017), Redis (6379), and Redis Commander (8081).
+
+3.  **Access Application**
+    - **Frontend**: [http://localhost:5173](http://localhost:5173)
+    - **Redis UI**: [http://localhost:8081](http://localhost:8081)
+
+### Installation (Manual)
 
 1.  **Clone the repository**
     ```bash
@@ -47,7 +71,7 @@ A comprehensive healthcare management platform connecting patients and doctors.
     ```bash
     cd backend
     npm install
-    # Create .env file with PORT, MONGO_URI, JWT_SECRET, etc.
+    # Ensure Redis is running locally on port 6379
     npm run dev
     ```
 

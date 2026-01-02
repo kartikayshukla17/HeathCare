@@ -23,6 +23,7 @@ import waterRoutes from "./routes/water.js";
 // Middleware / Utils
 import errorHandler from './middleware/errorMiddleware.js';
 import { initSocket } from './utils/socket.js';
+import initCDC from './services/cdcService.js';
 import { createServer } from 'http';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -53,7 +54,10 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Database Connection
 mongoose.connect(process.env.MONGO_URI || "mongodb://localhost:27017/medicare_plus")
-    .then(() => console.log('✅ Connected to MongoDB'))
+    .then(() => {
+        console.log('✅ Connected to MongoDB');
+        initCDC(); // Start Watching
+    })
     .catch((err) => console.log('❌ DB Connection Error:', err));
 
 // Routes
