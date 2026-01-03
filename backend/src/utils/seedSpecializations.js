@@ -14,11 +14,11 @@ dotenv.config({ path: path.join(path.dirname(path.dirname(__dirname)), '.env') }
 const seedSpecializations = async () => {
     try {
         await mongoose.connect(process.env.MONGO_URI);
-        console.log("✅ Connected to MongoDB");
+        // console.log("✅ Connected to MongoDB");
 
         // Extract unique specializations
         const uniqueSpecs = [...new Set(doctors.map(doc => doc.specialization))];
-        console.log(`Found ${uniqueSpecs.length} unique specializations.`);
+        // console.log(`Found ${uniqueSpecs.length} unique specializations.`);
 
         // Prepare docs
         const specDocs = uniqueSpecs.map(name => ({
@@ -31,10 +31,10 @@ const seedSpecializations = async () => {
         // But for a seed, we can just clear and re-insert, OR upsert.
         // Let's clear for clean state as this is initial setup.
         await Specialization.deleteMany({});
-        console.log("🗑️  Cleared existing specializations");
+        // console.log("🗑️  Cleared existing specializations");
 
         await Specialization.insertMany(specDocs);
-        console.log(`🌱 Seeded ${specDocs.length} specializations`);
+        // console.log(`🌱 Seeded ${specDocs.length} specializations`);
 
         process.exit();
     } catch (error) {

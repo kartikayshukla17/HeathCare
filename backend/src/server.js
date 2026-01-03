@@ -19,11 +19,13 @@ import specializationRoutes from './routes/specializations.js';
 import paymentRoutes from './routes/payment.js';
 import reportRoutes from "./routes/report.js";
 import waterRoutes from "./routes/water.js";
+import chatRoutes from "./routes/chat.js";
 
 // Middleware / Utils
 import errorHandler from './middleware/errorMiddleware.js';
 import { initSocket } from './utils/socket.js';
 import initCDC from './services/cdcService.js';
+import { initRAG } from './services/ragService.js';
 import { createServer } from 'http';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -55,10 +57,11 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Database Connection
 mongoose.connect(process.env.MONGO_URI || "mongodb://localhost:27017/medicare_plus")
     .then(() => {
-        console.log('✅ Connected to MongoDB');
+        // console.log('✅ Connected to MongoDB');
         initCDC(); // Start Watching
+        initRAG(); // Initialize RAG Vector Store
     })
-    .catch((err) => console.log('❌ DB Connection Error:', err));
+    .catch((err) => console.error('❌ DB Connection Error:', err));
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -73,6 +76,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/water", waterRoutes);
+app.use("/api/chat", chatRoutes);
 
 app.get('/', (req, res) => {
     res.send('MediCare+ API is Running');

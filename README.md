@@ -23,6 +23,11 @@ A comprehensive healthcare management platform connecting patients and doctors.
     - **Modern Design**: Glassmorphism, smooth animations, and responsive layouts.
     - **Dark Mode**: Fully supported dark mode across all screens.
     - **Profile Management**: Profile picture upload and instant sync.
+- **AI Chatbot Assistant (RAG)**:
+    - **Context-Aware**: Knows user's specific confirmed appointments and recent medical reports.
+    - **Intelligent Queries**: Answers questions like "When is my next visit?" or "What medicines do I take?".
+    - **Robust Architecture**: Implements Model Fallback (Auto-switches from Gemini 2.5 to 1.5 on failure) and Context Stuffing.
+    - **Tech**: Integrated with **Google Gemini API**.
 - **Performance & Scalability**:
     - **Redis Caching**: Cache-Aside strategy for high-read data (Profiles, Reports, Specializations).
     - **CDC (Change Data Capture)**: MongoDB Change Streams for automated, reliable cache invalidation.

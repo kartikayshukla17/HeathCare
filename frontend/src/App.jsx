@@ -13,6 +13,7 @@ const BookAppointment = lazy(() => import("./pages/BookAppointment"));
 const MyAppointments = lazy(() => import("./pages/MyAppointments"));
 const DoctorReports = lazy(() => import("./pages/DoctorReports"));
 const PatientReports = lazy(() => import("./pages/PatientReports"));
+const Chatbot = lazy(() => import("./components/Chatbot"));
 
 function App() {
   return (
@@ -88,6 +89,9 @@ function App() {
             } />
 
           </Routes>
+        </Suspense>
+        <Suspense fallback={null}>
+          <Chatbot />
         </Suspense>
       </div>
     </BrowserRouter>

@@ -15,7 +15,7 @@ dotenv.config({ path: path.join(path.dirname(path.dirname(__dirname)), '.env') }
 const seedDoctors = async () => {
     try {
         await mongoose.connect(process.env.MONGO_URI);
-        console.log("✅ Connected to MongoDB");
+        // console.log("✅ Connected to MongoDB");
 
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash("password123", salt);
@@ -24,7 +24,7 @@ const seedDoctors = async () => {
         // but for seeding consistent data, clearing is usually safer. 
         // I will clear for now to ensure IDs and data match expectations).
         await Doctor.deleteMany({});
-        console.log("🗑️  Cleared existing doctors");
+        // console.log("🗑️  Cleared existing doctors");
 
         const doctorDocs = await Promise.all(doctors.map(async (doc) => {
             // Find specialization ID
@@ -59,7 +59,7 @@ const seedDoctors = async () => {
         }));
 
         await Doctor.insertMany(doctorDocs);
-        console.log(`🌱 Seeded ${doctorDocs.length} doctors with linked specializations`);
+        // console.log(`🌱 Seeded ${doctorDocs.length} doctors with linked specializations`);
 
         process.exit();
     } catch (error) {

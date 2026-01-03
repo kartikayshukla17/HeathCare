@@ -22,7 +22,7 @@ dotenv.config({ path: path.join(path.dirname(path.dirname(__dirname)), '.env') }
 const seedDoctors = async () => {
     try {
         await mongoose.connect(process.env.MONGO_URI);
-        console.log("✅ Custom Seed: Connected to MongoDB");
+        // console.log("✅ Custom Seed: Connected to MongoDB");
 
         // We will NOT clear all doctors to preserve manually created ones, 
         // OR we can clear if we want a clean slate. 
